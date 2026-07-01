@@ -1,0 +1,707 @@
+/* ═══════════════════════════════════════════════════════════
+   RG-Agent Tactical Dashboard — Authentic Cyber Warfare HUD
+   Calm Tactical Green Palette + CRT Scanline Static Glitch
+   ═══════════════════════════════════════════════════════════ */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  min-height: 100vh;
+  height: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  background-color: #050708;
+  color: #d0d8d2;
+}
+
+/* ─── Cyberpunk Static & CRT Scanline Overlay ("지지직 거리는 효과") ─── */
+body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: repeating-linear-gradient(0deg,
+      rgba(0, 0, 0, 0.18) 0px,
+      rgba(0, 0, 0, 0.18) 1px,
+      transparent 1px,
+      transparent 3px);
+  pointer-events: none;
+  z-index: 100;
+  animation: crtFlicker 4s infinite;
+}
+
+/* Subtle Screen Static Noise / Glitch effect on top */
+body::after {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: radial-gradient(circle at 50% 50%, transparent 60%, rgba(0, 20, 10, 0.3) 100%);
+  pointer-events: none;
+  z-index: 99;
+}
+
+@keyframes crtFlicker {
+  0% {
+    opacity: 0.75;
+  }
+
+  45% {
+    opacity: 0.72;
+  }
+
+  46% {
+    opacity: 0.85;
+  }
+
+  /* Brief static jitter */
+  47% {
+    opacity: 0.70;
+  }
+
+  70% {
+    opacity: 0.73;
+  }
+
+  85% {
+    opacity: 0.71;
+  }
+
+  86% {
+    opacity: 0.88;
+  }
+
+  /* Brief static jitter */
+  87% {
+    opacity: 0.68;
+  }
+
+  100% {
+    opacity: 0.75;
+  }
+}
+
+.app-wrapper {
+  width: 100vw;
+  min-height: 100vh;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  z-index: 1;
+}
+
+/* Header / Controls Bar */
+.top-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  padding: 6px 12px;
+  background: #080c0a;
+  border: 1px solid #0e7a3d;
+  /* User swatch matching deep cyber green */
+  border-radius: 4px;
+  box-shadow: 0 0 10px rgba(14, 122, 61, 0.2);
+}
+
+.nav-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #139b4d;
+  /* Calm medium tactical green */
+  text-shadow: 0 0 6px rgba(19, 155, 77, 0.4);
+  letter-spacing: 1px;
+}
+
+.controls-group {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.ctrl-btn {
+  font-family: 'JetBrains Mono', monospace;
+  padding: 6px 18px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  border: 1px solid #0e7a3d;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.5px;
+}
+
+.btn-engage {
+  background-color: rgba(14, 122, 61, 0.2);
+  color: #15a352;
+  box-shadow: 0 0 8px rgba(14, 122, 61, 0.3);
+}
+
+.btn-engage:hover {
+  background-color: rgba(14, 122, 61, 0.35);
+}
+
+.btn-reset {
+  background-color: rgba(213, 0, 0, 0.15);
+  color: #ff2a4b;
+  border-color: #d50000;
+}
+
+.btn-reset:hover {
+  background-color: rgba(213, 0, 0, 0.3);
+}
+
+.speed-select {
+  font-family: 'JetBrains Mono', monospace;
+  padding: 5px 10px;
+  border-radius: 4px;
+  border: 1px solid #0e7a3d;
+  background-color: #080c0a;
+  color: #15a352;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* Tactical Notice Banner */
+.tactical-notice-banner {
+  background: rgba(0, 255, 170, 0.08);
+  border: 1px solid #00ffaa;
+  color: #00ffaa;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.95rem;
+  font-weight: 800;
+  padding: 10px 15px;
+  margin: 0 0 12px 0;
+  border-radius: 4px;
+  text-align: center;
+  box-shadow: 0 0 12px rgba(0, 255, 170, 0.2);
+  letter-spacing: 0.5px;
+  transition: all 0.3s ease;
+}
+
+/* Main Dashboard Board (Deep Black Grid Container) */
+.dashboard-board {
+  height: calc(100vh - 68px);
+  min-height: 620px;
+  flex: none;
+  margin-bottom: 24px;
+  background-color: #030504;
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid #0a3d1f;
+  display: grid;
+  grid-template-columns: 280px 1fr 1fr;
+  grid-template-rows: 1fr 180px;
+  gap: 12px;
+  overflow: hidden;
+}
+
+/* Common Card Styles */
+.panel-card {
+  background-color: #070a08;
+  border: 2px solid #0e7a3d;
+  /* User swatch deep green */
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+  gap: 8px;
+  overflow: hidden;
+  box-shadow: inset 0 0 15px rgba(14, 122, 61, 0.12), 0 0 10px rgba(14, 122, 61, 0.15);
+}
+
+/* ─── Left Column (Scores & SLA) spanning 2 rows ─── */
+.left-column {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background-color: transparent;
+  padding: 0;
+}
+
+.total-score-box {
+  background-color: #070a08;
+  border: 2px solid #0e7a3d;
+  padding: 12px;
+  border-radius: 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #15a352;
+  text-align: center;
+  text-shadow: 0 0 6px rgba(21, 163, 82, 0.4);
+  box-shadow: 0 0 10px rgba(14, 122, 61, 0.2);
+}
+
+.scores-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.score-box {
+  background-color: #070a08;
+  border: 1px solid #0b5e2f;
+  padding: 12px 8px;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: inset 0 0 10px rgba(14, 122, 61, 0.08);
+}
+
+.score-box img {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 3px rgba(21, 163, 82, 0.4));
+}
+
+.score-box .label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #8fa896;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.score-box .val {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #15a352;
+  text-shadow: 0 0 4px rgba(21, 163, 82, 0.3);
+}
+
+.victory-req-box {
+  background-color: #000000;
+  border: 1px solid #0b5e2f;
+  border-radius: 6px;
+  padding: 14px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  box-shadow: inset 0 0 12px rgba(14, 122, 61, 0.08);
+  margin-bottom: 4px;
+}
+
+.victory-req-box .req-title {
+  font-family: 'Inter', sans-serif;
+  font-size: 1.05rem;
+  font-weight: 500;
+  color: #ffffff;
+  letter-spacing: 0.3px;
+}
+
+.victory-req-box .req-val {
+  font-family: 'Inter', 'JetBrains Mono', sans-serif;
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.sla-grid {
+  flex: 1;
+  background-color: #070a08;
+  border: 1px solid #0b5e2f;
+  border-radius: 6px;
+  padding: 12px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 10px;
+  box-shadow: inset 0 0 15px rgba(14, 122, 61, 0.08);
+}
+
+.sla-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.circle-meter {
+  width: 68px;
+  height: 68px;
+  background-color: #050e08;
+  border: 2px solid #0e7a3d;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #15a352;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  font-weight: 800;
+  text-align: center;
+  padding: 4px;
+  line-height: 1.1;
+  box-shadow: 0 0 8px rgba(14, 122, 61, 0.2), inset 0 0 8px rgba(14, 122, 61, 0.15);
+}
+
+.circle-meter.danger {
+  border-color: #d50000;
+  color: #ff2a4b;
+  background-color: #120406;
+  box-shadow: 0 0 8px rgba(213, 0, 0, 0.3), inset 0 0 8px rgba(213, 0, 0, 0.2);
+}
+
+.circle-meter.warning {
+  border-color: #e69500;
+  color: #ffb700;
+  background-color: #120d04;
+  box-shadow: 0 0 8px rgba(230, 149, 0, 0.3), inset 0 0 8px rgba(230, 149, 0, 0.2);
+}
+
+.sla-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #139b4d;
+  text-align: center;
+  letter-spacing: 0.5px;
+}
+
+/* ─── Middle Column Top: Attack Agent ─── */
+.middle-top {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.header-bar {
+  background: linear-gradient(90deg, rgba(14, 122, 61, 0.25) 0%, rgba(7, 10, 8, 0.9) 100%);
+  padding: 8px 12px;
+  border-radius: 4px;
+  border-left: 4px solid #0e7a3d;
+  border-bottom: 1px solid #0b5e2f;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 800;
+  font-size: 0.95rem;
+  color: #15a352;
+  text-shadow: 0 0 5px rgba(21, 163, 82, 0.4);
+}
+
+.header-bar img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 3px rgba(21, 163, 82, 0.5));
+}
+
+.attack-body {
+  flex: 1;
+  display: flex;
+  margin-top: 4px;
+  width: 100%;
+}
+
+/* Cyberpunk black image box */
+.attack-img-box {
+  flex: 1;
+  width: 100%;
+  background-color: #050806;
+  border: 2px solid #0e7a3d;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  box-shadow: 0 0 10px rgba(14, 122, 61, 0.25);
+  overflow: hidden;
+}
+
+.attack-img-box img {
+  max-width: 96%;
+  max-height: 96%;
+  object-fit: contain;
+}
+
+/* ─── Right Column Top: Defense Agent ─── */
+.right-top {
+  grid-column: 3;
+  grid-row: 1;
+}
+
+.defense-body {
+  flex: 1;
+  background-color: #050806;
+  border: 2px solid #0e7a3d;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 4px;
+  padding: 12px;
+  box-shadow: 0 0 10px rgba(14, 122, 61, 0.25);
+  overflow: hidden;
+}
+
+.defense-body img {
+  max-width: 96%;
+  max-height: 96%;
+  object-fit: contain;
+}
+
+/* ─── Middle Column Bottom: 3 Rounds Grid ─── */
+.middle-bottom {
+  grid-column: 2;
+  grid-row: 2;
+  background-color: transparent;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+}
+
+.round-col {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.round-header {
+  background-color: #070a08;
+  color: #15a352;
+  border: 1px solid #0e7a3d;
+  font-family: 'JetBrains Mono', monospace;
+  text-align: center;
+  font-weight: 800;
+  font-size: 0.85rem;
+  padding: 6px;
+  border-radius: 4px;
+  box-shadow: 0 0 6px rgba(14, 122, 61, 0.15);
+}
+
+.round-result-box {
+  flex: 1;
+  background-color: #050806;
+  border: 2px solid #0e7a3d;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 6px rgba(14, 122, 61, 0.2);
+}
+
+.round-result-box img {
+  width: 104px;
+  height: 104px;
+  max-width: 95%;
+  max-height: 95%;
+  object-fit: contain;
+}
+
+/* ─── Right Column Bottom: Outcome Banner ─── */
+.right-bottom {
+  grid-column: 3;
+  grid-row: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 4px;
+}
+
+.outcome-attack {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1rem;
+  font-weight: 800;
+  color: #15a352;
+  text-shadow: 0 0 5px rgba(21, 163, 82, 0.4);
+}
+
+.outcome-arrow {
+  font-size: 1.2rem;
+  font-weight: 900;
+  color: #0b5e2f;
+  line-height: 1;
+}
+
+.outcome-defense {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #8fa896;
+}
+
+.outcome-status {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.15rem;
+  font-weight: 800;
+  margin-top: 2px;
+  letter-spacing: 0.5px;
+  line-height: 1.35;
+}
+
+.outcome-status.success {
+  color: #15a352;
+  text-shadow: 0 0 8px rgba(21, 163, 82, 0.6);
+}
+
+.outcome-status.fail {
+  color: #ff2a4b;
+  text-shadow: 0 0 8px rgba(255, 42, 75, 0.6);
+}
+
+/* Game Over Modal */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  z-index: 999;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-overlay.active {
+  display: flex;
+}
+
+.modal-card {
+  background: #000000;
+  border: 3px solid #00ffaa;
+  padding: 40px 50px;
+  border-radius: 6px;
+  text-align: center;
+  width: 440px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 30px rgba(0, 255, 170, 0.4);
+}
+
+.modal-icon {
+  width: 90px;
+  height: 90px;
+  object-fit: contain;
+  margin-bottom: 20px;
+  filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.3));
+}
+
+.modal-title {
+  font-family: 'Inter', sans-serif;
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 14px;
+  color: #ffffff;
+  letter-spacing: -0.5px;
+}
+
+.modal-desc {
+  display: block;
+  font-family: 'Inter', 'JetBrains Mono', sans-serif;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #00ffaa;
+  margin-bottom: 26px;
+  line-height: 1.5;
+  word-break: keep-all;
+  padding: 10px 18px;
+  background: rgba(255, 255, 255, 0.07);
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  width: 100%;
+}
+
+.btn-resimulation {
+  width: 100%;
+  background-color: #d9d9d9;
+  color: #000000;
+  font-family: 'Inter', sans-serif;
+  font-size: 1.4rem;
+  font-weight: 500;
+  padding: 14px 0;
+  border: none;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-resimulation:hover {
+  background-color: #ffffff;
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+}
+
+/* ─── Accumulated Round History List (Bottom Section) ─── */
+.history-section {
+  width: 100%;
+  background-color: #030504;
+  border: 1px solid #0a3d1f;
+  border-radius: 6px;
+  padding: 15px;
+  margin-bottom: 30px;
+  box-shadow: 0 0 15px rgba(14, 122, 61, 0.15);
+}
+
+.history-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #15a352;
+  margin-bottom: 12px;
+  text-shadow: 0 0 5px rgba(21, 163, 82, 0.4);
+  letter-spacing: 1px;
+}
+
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.9rem;
+}
+
+.history-table th {
+  background-color: #000000;
+  color: #15a352;
+  font-weight: 800;
+  padding: 10px 8px;
+  border-bottom: 2px solid #0e7a3d;
+  text-align: center;
+  letter-spacing: 0.5px;
+}
+
+.history-table td {
+  padding: 10px 8px;
+  border-bottom: 1px solid #0a3d1f;
+  text-align: center;
+  color: #d0d8d2;
+}
+
+.history-table tr:hover {
+  background-color: rgba(14, 122, 61, 0.1);
+}
+
+.win-def {
+  color: #15a352;
+  font-weight: 800;
+}
+
+.win-att {
+  color: #ff2a4b;
+  font-weight: 800;
+}

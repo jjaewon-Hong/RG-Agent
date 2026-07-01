@@ -1,0 +1,51 @@
+services:
+  target_env:
+    build: ./image_set
+    container_name: dah_target_env
+    networks:
+      - dah_network
+    ports:
+      - "8080:80"
+
+  attack_agent:
+    build: ./attack_agent
+    container_name: dah_attack_agent
+    depends_on:
+      - target_env
+    networks:
+      - dah_network
+    environment:
+      - TARGET_HOST=target_env
+      - PYTHONUNBUFFERED=1
+      - TZ=Asia/Seoul
+      - OLLAMA_URL=http://host.docker.internal:11434
+      - OLLAMA_MODEL=llama3
+      - ATTACK_INTERVAL=5
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./attack_agent:/app
+
+  defense_agent:
+    build: ./defense_agent
+    container_name: dah_defense_agent
+    ports:
+      - "5000:5000"
+    depends_on:
+      - target_env
+    networks:
+      - dah_network
+    environment:
+      - TARGET_HOST=target_env
+      - PYTHONUNBUFFERED=1
+      - TZ=Asia/Seoul
+      - OLLAMA_URL=http://host.docker.internal:11434
+      - OLLAMA_MODEL=llama3
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./defense_agent:/app
+
+networks:
+  dah_network:
+    driver: bridge
