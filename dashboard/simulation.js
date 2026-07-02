@@ -6,7 +6,7 @@
  */
 
 const COSTS = {
-  MISSILE_SURGICAL_STRIKE: 4.0,
+  MISSILE_SURGICAL_STRIKE: 3.0,
   DRONE_SWARM: 2.0,
   STEALTH_NOISE: 0.05,
   ADVERSARIAL_NOISE: 0.10,
@@ -438,7 +438,7 @@ function stepSim() {
     el.defenseMainImg.src = "images/interceptor_missile.png"; // Interceptor Missile
     if (ugvHit) state.ugvCooldown = 1;
   } else if (attType === "DRONE_SWARM") {
-    defSuccess = Math.random() <= 0.70; // 70% Real Intercept Rate
+    defSuccess = Math.random() <= 0.40; // 40% Real Intercept Rate against Swarm
     defName = "발칸포";
     el.defenseMainImg.src = "images/vulcan_cannon.png"; // Vulcan Cannon
     if (defSuccess && Math.random() <= 0.5) state.uavCooldown = 1;
@@ -463,7 +463,7 @@ function stepSim() {
       state.attackScore = Math.round((state.attackScore + 200.0) * 10) / 10;
     } else if (attType === "DRONE_SWARM") {
       state.availLoss = Math.min(100, state.availLoss + 10);
-      state.attackScore = Math.round((state.attackScore + 140.0) * 10) / 10;
+      state.attackScore = Math.round((state.attackScore + 120.0) * 10) / 10;
     } else if (attType === "DYNAMIC_REPLAY" || attType === "SPOOFING") {
       state.syncLoss = Math.min(100, state.syncLoss + 25);
       state.attackScore = Math.round((state.attackScore + 120.0) * 10) / 10;
@@ -605,7 +605,11 @@ function triggerGameOver(title, desc) {
   let isDef = title.includes("DEFENSE");
   el.modalTitle.textContent = isDef ? "Defense Agent Win" : "Attack Agent Win";
   if (el.modalDesc) {
-    el.modalDesc.textContent = desc || "시뮬레이션 종료";
+    let formattedDesc = desc || "시뮬레이션 종료";
+    formattedDesc = formattedDesc.replace(/<br>\s*/g, " ");
+    formattedDesc = formattedDesc.replace(/!\s*\((Defense Victory|Attack Victory|가용성 저하로 승리 기준 감소)\)/g, "!<br>($1)");
+    formattedDesc = formattedDesc.replace(/ \((Defense Victory|Attack Victory|가용성 저하로 승리 기준 감소)\)/g, "<br>($1)");
+    el.modalDesc.innerHTML = formattedDesc;
     el.modalDesc.style.display = "block";
     el.modalDesc.style.color = isDef ? "#00ffaa" : "#ff2a4b";
   }

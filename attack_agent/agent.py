@@ -63,7 +63,7 @@ IMAGE_LIST = [
 
 # 작전 예산 (국방비) 설정 - M$ (Million Dollars)
 current_budget: float = 20.0     # 총 작전 예산 (2,000만 달러)
-COST_MISSILE: float = 4.0        # 미사일 1발 비용 (400만 달러)
+COST_MISSILE: float = 3.0        # 미사일 1발 비용 (300만 달러)
 COST_DRONE_SWARM: float = 2.0    # 드론 군집(100대) 1회 투입 비용 (200만 달러)
 CYBER_COSTS: dict[str, float] = {
     "STEALTH_NOISE":     0.05,  # $50,000

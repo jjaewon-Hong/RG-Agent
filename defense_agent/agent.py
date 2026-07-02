@@ -185,13 +185,13 @@ def evaluate_physical_intercept(phys_attack: str, phys_asset: str, sensor_dmg: f
 
     elif phys_attack == "DRONE_SWARM":
         if intercept_approved:
-            intercept_success = (random.random() <= 0.70)
+            intercept_success = (random.random() <= 0.40)
             platform_hit = intercept_success
             munition_hit = intercept_success
             if intercept_success:
-                msg = f"{decision_reason}\n   └─> [UAV 모선 및 드론군집 요격 성공] 발칸포 명중 (물리 요격 성공률 70% 범위 적중)"
+                msg = f"{decision_reason}\n   └─> [UAV 모선 및 드론군집 요격 성공] 발칸포 명중 (드론 군집 물리 요격 성공률 40% 적중)"
             else:
-                msg = f"{decision_reason}\n   └─> [UAV 모선 및 드론군집 요격 물리 실패] 위협 탐지 및 발칸포 사격했으나 군집 포위 돌파 허용 (30% 회피 확률 관통)"
+                msg = f"{decision_reason}\n   └─> [UAV 모선 및 드론군집 요격 물리 실패] 위협 탐지 및 발칸포 사격했으나 100기 포화 공격 돌파 허용 (60% 관통 적중)"
         else:
             platform_hit = False
             munition_hit = False

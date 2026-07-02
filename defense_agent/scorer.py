@@ -28,7 +28,7 @@ class ScoreTracker:
         if attack_type == "MISSILE_SURGICAL_STRIKE":
             att_pts, def_pts = 200.0, 120.0
         elif attack_type == "DRONE_SWARM":
-            att_pts, def_pts = 140.0, 80.0
+            att_pts, def_pts = 120.0, 80.0
         elif any(k in attack_type for k in ["PULSED_BLINDING", "BLURRING"]):
             att_pts, def_pts = 150.0, 100.0
         elif any(k in attack_type for k in ["DYNAMIC_REPLAY", "SPOOFING"]):
