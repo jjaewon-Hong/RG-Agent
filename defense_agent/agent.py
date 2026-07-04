@@ -158,10 +158,17 @@ def evaluate_physical_intercept(phys_attack: str, phys_asset: str, sensor_dmg: f
 
 
 def compute_phash(image: np.ndarray) -> np.ndarray:
+    # [1단계: 전처리] 조도 변화에 불변하도록 그레이스케일 변환 후, 32x32 해상도로 축소
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     resized = cv2.resize(gray, (32, 32), interpolation=cv2.INTER_AREA).astype(np.float32)
+    
+    # [2단계: 주파수 도메인 변환] 2차원 이산 코사인 변환(DCT)을 통해 이미지의 공간 주파수 성분 추출
     dct = cv2.dct(resized)
+    
+    # [3단계: 저주파 핵심 특징 추출] 좌상단 8x8 영역(저주파 성분)만 추출하여 픽셀 노이즈 및 미세 변조 강건성 확보
     dct_low = dct[:8, :8]
+    
+    # [4단계: 64bit 지각 해시 생성] 8x8 영역의 중앙값(Median)을 기준으로 크면 1, 작으면 0으로 이진화(Binarization)
     median_val = np.median(dct_low)
     return (dct_low > median_val).flatten().astype(np.uint8)
 
@@ -212,13 +219,19 @@ def verify_replay_attack(image: np.ndarray, client_ts_str: str) -> tuple[bool, s
                 prev_lk_gray = cv2.resize(prev_lk_gray, (w_new, h_new))
                 prev_lk_pts = prev_lk_pts * np.array([fx, fy], dtype=np.float32)
 
+            # [1단계: 피라미드 Lucas-Kanade 광학 흐름 추적] 이전 프레임과 현재 프레임 간 특징점 50개의 물리적 이동 변위(Vector) 추적
             next_pts, status, err = cv2.calcOpticalFlowPyrLK(prev_lk_gray, gray, prev_lk_pts, None, winSize=(15, 15), maxLevel=2)
+            # 추적에 성공한 정상 특징점(status == 1)만 필터링하여 변위 계산 대상 확정
             good_new = next_pts[status == 1]
             good_old = prev_lk_pts[status == 1]
             if len(good_new) > 0:
+                # [2단계: 시공간 이동 변위 산출] 유클리드 노름(L2 Norm)을 통해 특징점들의 평균 물리 이동 거리(px) 계산
                 lk_movement = float(np.mean(np.linalg.norm(good_new - good_old, axis=1)))
+                # [3단계: 비정상 위조 프레임 판정 및 차단]
+                # - 0.05px 미만 : 픽셀이 전혀 움직이지 않는 '정지 루프(Freeze) 스푸핑'으로 규정
+                # - 50px 초과   : 시공간 궤적이 비정상적으로 단절되는 '점프(Jump) 스푸핑'으로 규정
                 if lk_movement < 0.05 or lk_movement > 50.0:
-                    is_lk_anomaly = True
+                    is_lk_anomaly = True  # 동기화 무결성 위협 감지 ➔ 즉시 위조 패킷 차단 및 드롭
         except Exception:
             is_lk_anomaly = True
 
@@ -247,8 +260,12 @@ def verify_blinding_attack(image: np.ndarray) -> tuple[bool, str, str, np.ndarra
     tactic_choice = random.choice(["ZERO_TRUST", "GAMMA_GATING"])
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
+    # [1단계: 광학 방해 수치 정량화] 화면 내 과포화 백색 픽셀(>=160) 비율 산출
     white_area_ratio = np.mean(gray >= 160)
+    # [2단계: 영상 선명도 검증] 라플라시안 2차 미분 연산자의 분산(Variance)을 통해 영상 내 고주파 윤곽선 강도 산출
     lap_var = cv2.Laplacian(gray, cv2.CV_64F).var()
+    # [3단계: 센서 실명(Blinding) 위협 규정]
+    # 백색 과포화 영역이 40% 이상이거나, 라플라시안 분산이 80 미만(심한 블러링)일 경우 광학 센서 마비로 규정
     is_blind = (white_area_ratio >= 0.40 or lap_var < 80)
 
     restored_img = image.copy()
@@ -256,6 +273,8 @@ def verify_blinding_attack(image: np.ndarray) -> tuple[bool, str, str, np.ndarra
     if tactic_choice == "ZERO_TRUST":
         tactic_name = "다중 센서 교차 검증"
         if is_blind:
+            # [4단계: 하드웨어 이중화 페일오버(Fail-over)]
+            # 비전 센서 신뢰도를 제로(Zero-Trust)로 강등하고, 비광학 채널인 레이더(Radar) 이중화 감시 체계로 즉각 전환!
             zero_trust_radar_active = True
             msg = "광학 방해 감지: 비전 센서 의존도 저하 규정 → Zero-Trust 다중 센서 레이더 교차검증 즉각 전환"
         else:
@@ -266,14 +285,19 @@ def verify_blinding_attack(image: np.ndarray) -> tuple[bool, str, str, np.ndarra
         zero_trust_radar_active = False
         if is_blind:
             try:
+                # [1단계: LAB 색공간 변환 및 명도 분리] 빛 방해(휘도)와 색상 정보를 분리하기 위해 BGR을 LAB 색공간으로 변환
                 lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
                 l, a, b = cv2.split(lab)
+                # [2단계: 적응형 히스토그램 평활화(CLAHE)] 극단적 빛 방해 속에서도 타깃 실루엣 대조비를 극대화 (타일 크기 8x8)
                 clahe = cv2.createCLAHE(clipLimit=3.5, tileGridSize=(8, 8))
                 cl = clahe.apply(l)
+                # [3단계: 비선형 감마 보정(γ=0.6) 룩업 테이블(LUT) 생성]
+                # 과포화 백색 펄스(눈부심)의 강한 휘도를 비선형적으로 감쇄시켜 고광원 방해를 억제하는 보정 곡선 적용
                 gamma = 0.6
                 invGamma = 1.0 / gamma
                 table = np.array([((i / 255.0) ** invGamma) * 255 for i in np.arange(0, 256)]).astype("uint8")
-                cl_gated = cv2.LUT(cl, table)
+                cl_gated = cv2.LUT(cl, table)  # 룩업 테이블 고속 매핑으로 광학 눈부심 억제 필터 적용
+                # [4단계: 채널 병합 및 영상 복원] 정화된 명도(L) 채널을 색상(A, B)과 병합 후 RGB로 복원 ➔ AI 타깃 식별 제어권 사수
                 restored_lab = cv2.merge((cl_gated, a, b))
                 restored_img = cv2.cvtColor(restored_lab, cv2.COLOR_LAB2BGR)
             except Exception:
