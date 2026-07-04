@@ -1,29 +1,3 @@
-"""
-=============================================================
- Reasoning Guard - AI Defense Agent (방어 에이전트)
- DAH 2026 Defense AI Cyber Security Hackathon
-=============================================================
- [핵심 설계 전략 - 심층 방어 및 공방 결합 메커니즘]
-
- 1. 물리 공격 선행 대처 및 사이버 결합 (Coupled Resilience):
-    - 물리 공격(UAV/UGV 미사일 타격) 대처를 최우선으로 수행
-    - 물리 방어 성공 시: 탐지망 무결성 보존 → 사이버 공격에 강력한 내성 발휘
-    - 물리 방어 실패 시: 탐지망 손상 누적 → 사이버 공격에 치명적 취약성 노출
-
- 2. 노이즈 공격 대처 (Stealth / Adversarial Noise):
-    - 적대적 훈련 (Adversarial Training): 기만 노이즈 데이터 지도학습 반영
-    - 입력단 디노이징 전처리 (Denoising Pre-processing): 가우시안 & 중간값 필터
-
- 3. 리플레이 공격 대처 (Dynamic Replay):
-    - 프레임 해시 검사 및 시퀀스 비교 (과거 n초 버퍼 중복 시 100% Drop)
-    - 동적 타임스탬프 (Dynamic Timestamp 실시간 난수 비교)
-
- 4. 블라인딩 공격 대처 (Pulsed Blinding):
-    - 픽셀 임계값 휴리스틱 룰 (백색/블러 면적 60% 이상 시 시야상실 규정)
-    - 다중 센서 교차 검증 (Zero-Trust 기반 레이더 보조 채널 즉각 전환)
-=============================================================
-"""
-
 import os
 import time
 import random
@@ -53,7 +27,6 @@ log.setLevel(logging.ERROR)
 
 score_tracker = ScoreTracker()
 
-# 글로벌 실시간 교전 상태 버퍼 (HTML 대시보드 HUD 실시간 연동용)
 global_sim_state = {
     "globalRound": 1,
     "budget": 20.0,
@@ -77,10 +50,6 @@ global_sim_state = {
 
 signal.signal(signal.SIGTERM, lambda s, f: os._exit(0))
 signal.signal(signal.SIGINT, lambda s, f: os._exit(0))
-
-# ─────────────────────────────────────────────
-# 전역 엔진 및 상태 버퍼
-# ─────────────────────────────────────────────
 
 def get_cpp_engine():
     try:
@@ -115,27 +84,19 @@ CLASS_NAMES = ["UGV", "UAV", "Rocket", "UAV_Clutter"]
 MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
 STD  = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 
-# 리플레이 방어용 지각 해시(pHash) 슬라이딩 윈도우 버퍼
 frame_phash_buffer: list[np.ndarray] = []
 FRAME_PHASH_MAX = 15
-PHASH_HAMMING_THRESHOLD = 10  # 해밍 거리 10bit 이하 → 동일 프레임 판정 (64bit 중)
+PHASH_HAMMING_THRESHOLD = 10
 
-# Lucas-Kanade 광학 흐름(Optical Flow) 추적 상태 변수
 prev_lk_gray = None
 prev_lk_pts = None
 
-# 블라인딩 시 Zero-Trust 레이더 백업 상태
 zero_trust_radar_active = False
 
 def query_llm_caution_verify(phys_attack: str, phys_asset: str, prob_dict: dict) -> tuple[bool, str]:
-    """
-    [💡 CAUTION 상태 LLM 지휘관 2차 재검증 질의]
-    ONNX/C++ 전술 엔진이 CAUTION(불확실)을 내렸을 때 LLM 지휘관 모델에게 이미지 위협 여부를 2차 확인합니다.
-    """
     main_threat = max(prob_dict.get("UGV", 0), prob_dict.get("UAV", 0), prob_dict.get("Rocket", 0))
     clutter = prob_dict.get("UAV_Clutter", 0)
-    
-    # LLM 지휘관 판정 로직: 위협 신호가 30% 이상이거나 클러터 대비 우세할 시 발사 승인
+
     if main_threat >= 0.30 or main_threat >= clutter * 0.8:
         return True, f"LLM 지휘관 이미지 2차 검증 승인 (위협신호 {main_threat:.2f} 감지 -> 교전 발사 허가)"
     else:
@@ -143,12 +104,6 @@ def query_llm_caution_verify(phys_attack: str, phys_asset: str, prob_dict: dict)
 
 
 def evaluate_physical_intercept(phys_attack: str, phys_asset: str, sensor_dmg: float, decision: str = "SAFE", prob_dict: dict = None) -> tuple[bool, bool, str]:
-    """
-    [이원화 물리 방어 판정 시나리오]
-    - DANGER : LLM 지휘관 모델에게 묻지도 않고 바로 발사해서 100% 요격
-    - CAUTION : LLM 지휘관 모델에게 이미지 한번 더 맞는지 확인해보고 발사 승인
-    - SAFE/FAIL : LLM 묻지도 않고 그냥 발사 취소
-    """
     global countermeasure_inventory
     if prob_dict is None:
         prob_dict = {"UGV": 0.0, "UAV": 0.0, "Rocket": 0.0, "UAV_Clutter": 1.0}
@@ -163,7 +118,7 @@ def evaluate_physical_intercept(phys_attack: str, phys_asset: str, sensor_dmg: f
         llm_ok, llm_msg = query_llm_caution_verify(phys_attack, phys_asset, prob_dict)
         intercept_approved = llm_ok
         decision_reason = f"[★ 전술 판단: CAUTION] 위협 불확실 -> {llm_msg}"
-    else: # SAFE or Breached
+    else:
         intercept_approved = False
         decision_reason = "[★ 전술 판단: SAFE/FAIL] 위협 인지 실패(기만/노이즈 관통) -> LLM 질의 없이 즉시 발사 취소"
 
@@ -203,38 +158,22 @@ def evaluate_physical_intercept(phys_attack: str, phys_asset: str, sensor_dmg: f
 
 
 def compute_phash(image: np.ndarray) -> np.ndarray:
-    """
-    [pHash] 지각 해시 (Perceptual Hash) 추출.
-    DCT 기반 64bit 해시 → 노이즈가 끼어도 유사 프레임 탐지 가능.
-    MD5 눈사태 효과(Avalanche Effect) 완전 상쇄.
-    """
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     resized = cv2.resize(gray, (32, 32), interpolation=cv2.INTER_AREA).astype(np.float32)
     dct = cv2.dct(resized)
-    dct_low = dct[:8, :8]  # 저주파 8x8 블록만 추출
+    dct_low = dct[:8, :8]
     median_val = np.median(dct_low)
-    return (dct_low > median_val).flatten().astype(np.uint8)  # 64bit 이진 해시
+    return (dct_low > median_val).flatten().astype(np.uint8)
 
 
 def hamming_distance(h1: np.ndarray, h2: np.ndarray) -> int:
-    """두 pHash 간 해밍 거리 계산 (비트 단위 불일치 수)"""
     return int(np.sum(h1 != h2))
 
 
-# ─────────────────────────────────────────────
-# 방어 대처 세부 로직 모듈들
-# ─────────────────────────────────────────────
-
 def verify_replay_attack(image: np.ndarray, client_ts_str: str) -> tuple[bool, str, str]:
-    """
-    [💡 Q2 대처] 리플레이 공격 2중 선택 방어 체계
-    전술 A: 동적 지각 해시 검증 (pHash + 타임스탬프)
-    전술 B: 시공간 광학 흐름 연속성 검증 (Lucas-Kanade Optical Flow Tracking)
-    """
     global frame_phash_buffer, prev_lk_gray, prev_lk_pts
     tactic_choice = random.choice(["PHASH", "OPTICAL_FLOW"])
 
-    # 1. 동적 타임스탬프 공통 검사
     try:
         if client_ts_str and client_ts_str != "0.0":
             client_ts = float(client_ts_str)
@@ -244,7 +183,6 @@ def verify_replay_attack(image: np.ndarray, client_ts_str: str) -> tuple[bool, s
     except ValueError:
         pass
 
-    # 2. 지각 해시(pHash) 대조
     current_phash = compute_phash(image)
     is_phash_replay = False
     dist_val = 999
@@ -260,7 +198,6 @@ def verify_replay_attack(image: np.ndarray, client_ts_str: str) -> tuple[bool, s
     if len(frame_phash_buffer) > FRAME_PHASH_MAX:
         frame_phash_buffer.pop(0)
 
-    # 3. Lucas-Kanade 광학 흐름 (Optical Flow) 실제 추적 계산
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     is_lk_anomaly = False
     lk_movement = 0.0
@@ -280,12 +217,11 @@ def verify_replay_attack(image: np.ndarray, client_ts_str: str) -> tuple[bool, s
             good_old = prev_lk_pts[status == 1]
             if len(good_new) > 0:
                 lk_movement = float(np.mean(np.linalg.norm(good_new - good_old, axis=1)))
-                # 변위 벡터가 완전히 0(정지 루프 프레임)이거나 비정상적으로 튈 때(점프 단절) 스푸핑 판정
                 if lk_movement < 0.05 or lk_movement > 50.0:
                     is_lk_anomaly = True
         except Exception:
             is_lk_anomaly = True
-    
+
     prev_lk_gray = gray.copy()
     prev_lk_pts = cv2.goodFeaturesToTrack(gray, maxCorners=50, qualityLevel=0.01, minDistance=10)
 
@@ -307,42 +243,33 @@ def verify_replay_attack(image: np.ndarray, client_ts_str: str) -> tuple[bool, s
 
 
 def verify_blinding_attack(image: np.ndarray) -> tuple[bool, str, str, np.ndarray]:
-    """
-    [💡 Q3 대처] 블라인딩 공격 2중 선택 방어 체계
-    전술 A: 다중 센서 교차 검증 (Zero-Trust Blinding Defense)
-    전술 B: 적응형 감마 클리핑 및 편광 필터링 (Adaptive Gamma Gating)
-    """
     global zero_trust_radar_active
     tactic_choice = random.choice(["ZERO_TRUST", "GAMMA_GATING"])
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    
+
     white_area_ratio = np.mean(gray >= 160)
     lap_var = cv2.Laplacian(gray, cv2.CV_64F).var()
-    is_blind = (white_area_ratio >= 0.60 or lap_var < 50)
-    
-    if is_blind:
-        zero_trust_radar_active = True
-    else:
-        zero_trust_radar_active = False
+    is_blind = (white_area_ratio >= 0.40 or lap_var < 80)
 
     restored_img = image.copy()
 
     if tactic_choice == "ZERO_TRUST":
         tactic_name = "다중 센서 교차 검증"
         if is_blind:
-            msg = f"휴리스틱 룰 감지 (고휘도 면적 {int(white_area_ratio*100)}%≥60%): 시야상실 규정 → Zero-Trust 다중 센서 레이더 교차검증 전환"
+            zero_trust_radar_active = True
+            msg = "광학 방해 감지: 비전 센서 의존도 저하 규정 → Zero-Trust 다중 센서 레이더 교차검증 즉각 전환"
         else:
+            zero_trust_radar_active = False
             msg = "비전 센서 시야 명확 (레이더 연동 대기)"
     else:
         tactic_name = "적응형 감마 클리핑 및 편광 필터링"
+        zero_trust_radar_active = False
         if is_blind:
             try:
-                # 1. CLAHE 적응형 히스토그램 평활화 (대조비 복원)
                 lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
                 l, a, b = cv2.split(lab)
                 clahe = cv2.createCLAHE(clipLimit=3.5, tileGridSize=(8, 8))
                 cl = clahe.apply(l)
-                # 2. 감마 보정 클리핑 (과포화 하이라이트 감쇄)
                 gamma = 0.6
                 invGamma = 1.0 / gamma
                 table = np.array([((i / 255.0) ** invGamma) * 255 for i in np.arange(0, 256)]).astype("uint8")
@@ -359,10 +286,6 @@ def verify_blinding_attack(image: np.ndarray) -> tuple[bool, str, str, np.ndarra
 
 
 def query_llm_noise_defense(cyb_attack: str, noise_std: float) -> tuple[str, int]:
-    """
-    [💡 Q1 대처: LLM 라마 모델 기반 능동형 노이즈 방어 전술 수립]
-    고주파 노이즈 통계(표준편차)를 바탕으로 LLM에게 최적의 디노이징 파라미터와 전술명을 질의합니다.
-    """
     prompt = f"""당신은 AI 사이버 방어 지휘관입니다. 현재 {cyb_attack} 공격이 감지되었습니다. 
 해당 프레임의 고주파 노이즈 표준편차는 {noise_std:.2f}입니다.
 적대적 섭동 및 스텔스 노이즈를 제거하기 위한 최적의 디노이징 필터 강도(5~15)와 방어 전술명을 JSON으로 반환하세요.
@@ -408,25 +331,18 @@ adaptive_denoise_count = 0
 
 
 def denoise_preprocessing(image: np.ndarray, cyb_attack: str = "NONE") -> tuple[np.ndarray, str, bool, str]:
-    """
-    [노이즈 대처] 실제 영상 처리 기반 능동 방어 체계
-    - LLM 적응형 디노이징: LLM이 제안한 필터 강도(strength)로 비국소 평균(Non-Local Means) 정화 연산 수행
-    - 정화 성공 여부: 라플라시안 고주파 분산(표준편차) 실시간 감소 여부로 실제 정밀 판정
-    """
     global adaptive_denoise_count
     if "NOISE" in cyb_attack:
         gray_before = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         noise_before = float(cv2.Laplacian(gray_before, cv2.CV_64F).std())
         tactic_name, strength = query_llm_noise_defense(cyb_attack, noise_before)
-        
+
         if "ADVERSARIAL" in cyb_attack or "Adaptive" in tactic_name or "적응형" in tactic_name:
             adaptive_denoise_count += 1
             tactic_display = "LLM 적응형 디노이징"
-            # 실제 OpenCV Non-Local Means 디노이징 수행
             clean = cv2.fastNlMeansDenoisingColored(image, None, float(strength), float(strength), 3, 7)
             noise_after = float(cv2.Laplacian(cv2.cvtColor(clean, cv2.COLOR_BGR2GRAY), cv2.CV_64F).std())
-            
-            # 정화 후 노이즈 수치가 실제로 감소했거나 임계값 이하로 안정화되었는지 검증
+
             if noise_after < noise_before or noise_after <= 35.0:
                 msg = f"방어전술 : [{tactic_display}] | 방어 성공 (노이즈 편차 {noise_before:.1f} → {noise_after:.1f} 감쇄) → 적대적 노이즈 박멸 완료"
                 return clean, msg, True, tactic_display
@@ -437,22 +353,18 @@ def denoise_preprocessing(image: np.ndarray, cyb_attack: str = "NONE") -> tuple[
             tactic_display = "윤곽선 무결성 보존"
             clean = cv2.bilateralFilter(image, 9, 75, 75)
             noise_after = float(cv2.Laplacian(cv2.cvtColor(clean, cv2.COLOR_BGR2GRAY), cv2.CV_64F).std())
-            
+
             if noise_after < noise_before or noise_after <= 35.0:
                 msg = f"방어전술 : [{tactic_display}] | 방어 성공 (바이래터럴 필터 정화 완료) → 미세 스텔스 노이즈 차단"
                 return clean, msg, True, tactic_display
             else:
                 msg = f"방어전술 : [{tactic_display}] | 방어 실패 (스텔스 노이즈 우회 침투 허용)"
                 return image, msg, False, tactic_display
-        
+
     med = cv2.medianBlur(image, 3)
     clean = cv2.GaussianBlur(med, (5, 5), 0)
     return clean, "", True, "LLM 적응형 디노이징"
 
-
-# ─────────────────────────────────────────────
-# 메인 심층 방어 파이프라인 (Flask Endpoint)
-# ─────────────────────────────────────────────
 
 @app.route('/analyze', methods=['POST'])
 def analyze():
@@ -473,7 +385,6 @@ def analyze():
     req_round       = int(request.form.get("round_num", global_sim_state["globalRound"]))
     req_budget      = float(request.form.get("current_budget", global_sim_state["budget"]))
 
-    # 리플레이/지연 패킷 방어: 대시보드 리셋 직후 이전 교전 사이클의 늦은 패킷이 도착하면 상태를 변경하지 않고 무시
     if global_sim_state["globalRound"] == 1 and req_round > 1:
         return jsonify({"status": "RESET_DETECTED", "globalRound": global_sim_state["globalRound"]}), 200
     if req_round == 1 and global_sim_state["globalRound"] > 1:
@@ -505,7 +416,6 @@ def analyze():
             if noise_success:
                 detected_anomalies.append("적대적_노이즈_정화_완료")
 
-    # [ONNX & C++ 전술 엔진 추론] 물리 방어 승패 판정 전에 위협 인지 수행
     decision = "SAFE"
     prob_dict = {"UGV": 0.0, "UAV": 0.0, "Rocket": 0.0, "UAV_Clutter": 1.0}
     if ort_session:
@@ -534,19 +444,17 @@ def analyze():
     else:
         decision = "ONNX_OFFLINE"
 
-    # [동적 물리 요격 판정] ONNX/C++ 전술 엔진의 이미지 올바른 판단 여부에 따른 100% 명중 판정
     if phys_attack in ["MISSILE_SURGICAL_STRIKE", "DRONE_SWARM"]:
         platform_destroyed, munition_intercepted, intercept_msg = evaluate_physical_intercept(phys_attack, phys_asset, sensor_dmg, decision, prob_dict)
-        physical_defense_success = munition_intercepted # 탄두를 막아야 물리 방어 성공(탐지망/가용성 보호)
+        physical_defense_success = munition_intercepted
         active_defense_asset = "Interceptor_Missile.png" if phys_attack == "MISSILE_SURGICAL_STRIKE" else "Vulcan_Cannon.png"
-        
+
         print(f"\n  [★ 교전 전술 판정 로그] 물리 공격 감지 ({phys_asset} -> {phys_attack})")
         print(f"   └─> {intercept_msg}", flush=True)
 
         if physical_defense_success:
             detected_anomalies.append(f"탄두_요격_성공({intercept_msg[:25]})")
         else:
-            # 요격 실패 시 실제 손상 반영 (미사일 20%, 드론군집 10% 가용성 영구 손상)
             if phys_attack == "MISSILE_SURGICAL_STRIKE":
                 sensor_dmg = min(1.0, sensor_dmg + 0.30)
                 avail_loss = min(100, avail_loss + 20)
@@ -556,7 +464,6 @@ def analyze():
         if platform_destroyed:
             detected_anomalies.append("적_플랫폼_파괴")
 
-    # 리플레이/스푸핑 검증
     replay_tactic = "동적 지각 해시 검증"
     if any(k in cyb1 for k in ["DYNAMIC_REPLAY", "SPOOFING"]) or any(k in cyb2 for k in ["DYNAMIC_REPLAY", "SPOOFING"]):
         is_replay, replay_msg, replay_tactic = verify_replay_attack(processed_image, client_ts)
@@ -564,7 +471,6 @@ def analyze():
         if is_replay:
             detected_anomalies.append("동적_리플레이_스푸핑_감지")
 
-    # 블라인딩/블러링 검증
     blind_tactic = "다중 센서 교차 검증"
     if any(k in cyb1 for k in ["PULSED_BLINDING", "BLURRING"]) or any(k in cyb2 for k in ["PULSED_BLINDING", "BLURRING"]):
         is_blind, blind_msg, blind_tactic, restored_img = verify_blinding_attack(processed_image)
@@ -590,7 +496,6 @@ def analyze():
 
     print(f" [Defense] 무결성손상: {score_tracker.integrity_loss_pct}% | 동기화왜곡: {score_tracker.sync_loss_pct}% | 가용성손실: {score_tracker.avail_loss_pct}%", flush=True)
 
-    # 글로벌 실시간 상태 버퍼 업데이트 (대시보드 라이브 모드용)
     def_name = "AI 사이버 방어 쉴드"
     if phys_attack == "MISSILE_SURGICAL_STRIKE": def_name = "요격 미사일"
     elif phys_attack == "DRONE_SWARM": def_name = "발칸포"
@@ -638,7 +543,7 @@ def analyze():
         "dPoint": round(score_tracker.defense_score, 1),
         "tPoint": round(tot_sc, 1)
     })
-    
+
     if completed_r % 3 == 0:
         att_wins = sum(1 for log in global_sim_state["historyLogs"][-3:] if log.get("win") == "공격")
         if att_wins < 2:

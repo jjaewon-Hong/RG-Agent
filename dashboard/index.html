@@ -15,7 +15,6 @@
 
 <body>
   <div class="app-wrapper">
-    <!-- Top Navigation / Controls Bar -->
     <header class="top-nav">
       <div class="nav-title"> RG - Agent </div>
       <div class="controls-group">
@@ -33,13 +32,10 @@
       </div>
     </header>
 
-    <!-- AI Tactical Commander Live Notice Banner -->
     <div id="tactical-notice-banner" class="tactical-notice-banner"> LLM 최초 공격 패턴 구축 중 ... </div>
 
-    <!-- Main Dashboard Board (Black Grid Container) -->
     <main class="dashboard-board">
 
-      <!-- ─── Left Column: Scores & SLA Meters (Spans 2 Rows) ─── -->
       <aside class="left-column">
         <div id="total-score-box" class="total-score-box">
           Total_Score: 0.0 pt
@@ -83,7 +79,6 @@
         </div>
       </aside>
 
-      <!-- ─── Middle Column Top: Attack Agent ─── -->
       <section class="panel-card middle-top">
         <div class="header-bar">
           <img src="images/attack_logo.png" alt="Attack Logo">
@@ -96,7 +91,6 @@
         </div>
       </section>
 
-      <!-- ─── Right Column Top: Defense Agent ─── -->
       <section class="panel-card right-top">
         <div class="header-bar">
           <img src="images/defense_logo.png" alt="Defense Logo">
@@ -107,7 +101,6 @@
         </div>
       </section>
 
-      <!-- ─── Middle Column Bottom: 3 Rounds Clean Grid ─── -->
       <section class="middle-bottom">
         <div class="round-col">
           <div id="r1-title" class="round-header">Round 1</div>
@@ -129,7 +122,6 @@
         </div>
       </section>
 
-      <!-- ─── Right Column Bottom: Outcome Summary Card ─── -->
       <section class="panel-card right-bottom">
         <div id="outcome-attack" class="outcome-attack">STEALTH_NOISE</div>
         <div class="outcome-arrow">▼</div>
@@ -139,7 +131,6 @@
 
     </main>
 
-    <!-- ─── Accumulated Round History List (Scrolling Down) ─── -->
     <section class="history-section">
       <div class="history-title">[ TACTICAL ENGAGEMENT LOGS ]</div>
       <table class="history-table">
@@ -155,13 +146,11 @@
           </tr>
         </thead>
         <tbody id="history-tbody">
-          <!-- Dynamically populated by JS -->
         </tbody>
       </table>
     </section>
   </div>
 
-  <!-- Game Over Modal -->
   <div id="modal-overlay" class="modal-overlay">
     <div class="modal-card">
       <img id="modal-icon" src="images/attack_logo.png" class="modal-icon" alt="Win Icon">

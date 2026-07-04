@@ -1,10 +1,3 @@
-/**
- * ═══════════════════════════════════════════════════════════
- *  RG-Agent Tactical Dashboard — Single Page Simulation Engine
- *  Exact Figma Match & 3-Round Clean Reset Cycle
- * ═══════════════════════════════════════════════════════════
- */
-
 const COSTS = {
   MISSILE_SURGICAL_STRIKE: 3.0,
   DRONE_SWARM: 2.0,
@@ -16,7 +9,6 @@ const COSTS = {
   BLURRING: 0.50
 };
 
-// Simulation State
 let state = {
   isRunning: false,
   intervalId: null,
@@ -24,23 +16,16 @@ let state = {
   globalRound: 1,
   budget: 20.0,
   spentCost: 0.0,
-
-  // Scores
   attackScore: 0.0,
   defenseScore: 0.0,
-
-  // SLA Triad Loss percentages
   availLoss: 0,
   syncLoss: 0,
   integLoss: 0,
-
-  // Cooldowns
   ugvCooldown: 0,
   uavCooldown: 0,
   adaptiveDenoiseCount: 0
 };
 
-// DOM Elements
 const el = {
   btnStart: document.getElementById("btn-start"),
   btnReset: document.getElementById("btn-reset"),
@@ -82,7 +67,6 @@ const el = {
   btnRestart: document.getElementById("btn-restart")
 };
 
-// Event Listeners
 el.btnStart.addEventListener("click", () => {
   if (state.isRunning) pauseSim();
   else startSim();
@@ -347,28 +331,23 @@ function clearRoundBoxes(startRoundNum) {
 }
 
 function stepSim() {
-  // Check cycle clean reset (every 3 rounds)
-  let cycleIdx = (state.globalRound - 1) % 3; // 0, 1, or 2
+  let cycleIdx = (state.globalRound - 1) % 3;
   if (cycleIdx === 0) {
     clearRoundBoxes(state.globalRound);
   }
 
-  // Check termination conditions before step
   if (state.budget < 2.0) {
     triggerGameOver("DEFENSE VICTORY", "공격측 잔여 예산 완전 소진");
     return;
   }
 
-  // Determine Attack
   let attType = "";
   let attCost = 0;
   let isPhysical = false;
 
   if (cycleIdx === 0) {
-    // Round 1 of cycle: Cyber Probe (Noise)
     attType = Math.random() > 0.5 ? "STEALTH_NOISE" : "ADVERSARIAL_NOISE";
   } else if (cycleIdx === 1) {
-    // Round 2 of cycle: Physical Strike
     isPhysical = true;
     if (state.budget >= COSTS.MISSILE_SURGICAL_STRIKE && state.ugvCooldown === 0) {
       attType = "MISSILE_SURGICAL_STRIKE";
@@ -376,7 +355,6 @@ function stepSim() {
       attType = "DRONE_SWARM";
     }
   } else {
-    // Round 3 of cycle: Cyber EW
     attType = Math.random() > 0.5 ? "SPOOFING" : "BLURRING";
   }
 
@@ -389,7 +367,6 @@ function stepSim() {
   state.budget -= attCost;
   state.spentCost += attCost;
 
-  // Update Attack UI
   let attMap = {
     "MISSILE_SURGICAL_STRIKE": "UGV 미사일 타격",
     "DRONE_SWARM": "자폭 드론 군집",
@@ -416,7 +393,6 @@ function stepSim() {
     el.attackMainImg.src = "images/noise.png";
   }
 
-  // Determine Defense Response & 70% Hit Rule
   let defName = "";
   let defSuccess = true;
 
@@ -431,16 +407,16 @@ function stepSim() {
     defName = "윤곽선 무결성 보존";
     el.defenseMainImg.src = "images/noise_defense.png";
   } else if (attType === "MISSILE_SURGICAL_STRIKE") {
-    defSuccess = Math.random() <= 0.70; // 70% Real Intercept Rate
+    defSuccess = Math.random() <= 0.70;
     let ugvHit = Math.random() <= 0.70;
     state.lastUgvHit = ugvHit;
     defName = "요격 미사일";
-    el.defenseMainImg.src = "images/interceptor_missile.png"; // Interceptor Missile
+    el.defenseMainImg.src = "images/interceptor_missile.png";
     if (ugvHit) state.ugvCooldown = 1;
   } else if (attType === "DRONE_SWARM") {
-    defSuccess = Math.random() <= 0.40; // 40% Real Intercept Rate against Swarm
+    defSuccess = Math.random() <= 0.40;
     defName = "발칸포";
-    el.defenseMainImg.src = "images/vulcan_cannon.png"; // Vulcan Cannon
+    el.defenseMainImg.src = "images/vulcan_cannon.png";
     if (defSuccess && Math.random() <= 0.5) state.uavCooldown = 1;
   } else if (attType === "DYNAMIC_REPLAY" || attType === "SPOOFING") {
     defSuccess = Math.random() <= 0.75;
@@ -455,9 +431,7 @@ function stepSim() {
   el.defenseMainImg.style.display = "block";
   el.defenseTitle.textContent = `Defense_Agent : ${defName}`;
 
-  // Apply Independent Balance Patch Scoring
   if (!defSuccess) {
-    // Attack breakthrough
     if (attType === "MISSILE_SURGICAL_STRIKE") {
       state.availLoss = Math.min(100, state.availLoss + 20);
       state.attackScore = Math.round((state.attackScore + 200.0) * 10) / 10;
@@ -476,7 +450,6 @@ function stepSim() {
       state.attackScore = Math.round((state.attackScore + 30.0) * 10) / 10;
     }
   } else {
-    // Defense block
     let shift = 20.0;
     if (attType === "MISSILE_SURGICAL_STRIKE") shift = 120.0;
     else if (attType === "DRONE_SWARM") shift = 80.0;
@@ -491,12 +464,10 @@ function stepSim() {
     if (state.uavCooldown > 0 && attType !== "DRONE_SWARM") state.uavCooldown--;
   }
 
-  // Update Round Box Result Icon
   let targetImgEl = cycleIdx === 0 ? el.r1Img : (cycleIdx === 1 ? el.r2Img : el.r3Img);
   targetImgEl.src = defSuccess ? "images/defense_win.png" : "images/attack_win.png";
   targetImgEl.style.display = "inline-block";
 
-  // Update Outcome Banner
   el.outcomeAttack.textContent = attDisplay;
   if (attType === "MISSILE_SURGICAL_STRIKE") {
     let ugvStr = state.lastUgvHit ? "UGV 요격 성공" : "UGV 요격 실패";
@@ -507,10 +478,8 @@ function stepSim() {
   }
   el.outcomeStatus.className = `outcome-status ${defSuccess ? 'success' : 'fail'}`;
 
-  // Update UI & Check End
   updateUI();
 
-  // Append accumulated log row
   if (el.historyTbody) {
     let availPct = Math.max(0, 100 - state.availLoss);
     let totScore = (state.attackScore + state.defenseScore) * (availPct / 100.0);

@@ -9,11 +9,8 @@ class ScoreTracker:
         self.prev_integ = 0
         self.prev_sync = 0
         self.prev_avail = 0
-        
+
     def evaluate_triad_round(self, attack_type, defense_response, integ_loss, sync_loss, avail_loss):
-        """
-        보안 3대 핵심 축 (CIA/ITA Triad) 손상도와 방어 성공(차단) / 실패(관통) 여부에 따라 독립 누적 점수를 산출합니다.
-        """
         self.availability = max(0.0, 100.0 - avail_loss)
         if not defense_response:
             self.availability = 0.0
@@ -42,10 +39,8 @@ class ScoreTracker:
 
         if attack_type != "NONE":
             if is_defense_success:
-                # 방어 성공 (차단 성공): 방어측 독립 점수만 획득! 공격 점수는 0점 증가!
                 self.defense_score = round(self.defense_score + def_pts, 1)
             else:
-                # 방어 실패 (공격 관통): 공격측 독립 점수만 획득! 방어 점수는 0점 증가!
                 self.attack_score = round(self.attack_score + att_pts, 1)
 
         self.integrity_loss_pct = min(100, integ_loss)
