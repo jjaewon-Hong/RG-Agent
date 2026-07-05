@@ -47,7 +47,7 @@ IMAGE_LIST = [
     "Missile_1.png", "Missile_2.png", "Missile_3.png", "Missile_4.png"
 ]
 
-current_budget: float = 20.0
+current_budget: float = 15.0
 COST_MISSILE: float = 3.0
 COST_DRONE_SWARM: float = 2.0
 CYBER_COSTS: dict[str, float] = {
@@ -399,7 +399,7 @@ def main():
 
     while True:
         global current_budget, missile_sensor_damage, bandwidth_loss_pct, temporal_sync_loss_pct, ugv_cooldown, uav_cooldown
-        current_budget = 20.0
+        current_budget = 15.0
         missile_sensor_damage = 0.0
         bandwidth_loss_pct = 0
         temporal_sync_loss_pct = 0
@@ -428,7 +428,7 @@ def main():
                                         "attack_score": score_tracker.attack_score,
                                         "availability": score_tracker.availability,
                                         "budget": round(current_budget, 2),
-                                        "spent_cost": round(20.0 - current_budget, 2)},
+                                        "spent_cost": round(15.0 - current_budget, 2)},
                                   timeout=1.0)
                 except Exception:
                     pass
@@ -655,7 +655,7 @@ def main():
                                     "attack_score": score_tracker.attack_score,
                                     "availability": score_tracker.availability,
                                     "budget": round(current_budget, 2),
-                                    "spent_cost": round(20.0 - current_budget, 2)},
+                                    "spent_cost": round(15.0 - current_budget, 2)},
                               timeout=1.0)
             except Exception:
                 pass

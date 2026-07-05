@@ -29,7 +29,7 @@ score_tracker = ScoreTracker()
 
 global_sim_state = {
     "globalRound": 1,
-    "budget": 20.0,
+    "budget": 15.0,
     "spentCost": 0.0,
     "attackScore": 0.0,
     "defenseScore": 0.0,
@@ -368,22 +368,28 @@ def denoise_preprocessing(image: np.ndarray, cyb_attack: str = "NONE") -> tuple[
             clean = cv2.fastNlMeansDenoisingColored(image, None, float(strength), float(strength), 3, 7)
             noise_after = float(cv2.Laplacian(cv2.cvtColor(clean, cv2.COLOR_BGR2GRAY), cv2.CV_64F).std())
 
-            if noise_after < noise_before or noise_after <= 35.0:
-                msg = f"방어전술 : [{tactic_display}] | 방어 성공 (노이즈 편차 {noise_before:.1f} → {noise_after:.1f} 감쇄) → 적대적 노이즈 박멸 완료"
+            prob = min(0.95, 0.40 + 0.15 * (adaptive_denoise_count - 1))
+            is_success = random.random() <= prob
+
+            if is_success:
+                msg = f"방어전술 : [{tactic_display}] | 방어 성공 (노이즈 편차 {noise_before:.1f} → {noise_after:.1f} 감쇄, 방어율 {prob*100:.0f}%) → 적대적 노이즈 박멸 완료"
                 return clean, msg, True, tactic_display
             else:
-                msg = f"방어전술 : [{tactic_display}] | 방어 실패 (강한 노이즈 편차 {noise_after:.1f} 잔존) → 필터 한계로 관통 허용"
+                msg = f"방어전술 : [{tactic_display}] | 방어 실패 (노이즈 편차 {noise_before:.1f} → {noise_after:.1f} 감쇄, 방어율 {prob*100:.0f}% 한계 돌파 허용)"
                 return clean, msg, False, tactic_display
         else:
             tactic_display = "윤곽선 무결성 보존"
             clean = cv2.bilateralFilter(image, 9, 75, 75)
             noise_after = float(cv2.Laplacian(cv2.cvtColor(clean, cv2.COLOR_BGR2GRAY), cv2.CV_64F).std())
 
-            if noise_after < noise_before or noise_after <= 35.0:
-                msg = f"방어전술 : [{tactic_display}] | 방어 성공 (바이래터럴 필터 정화 완료) → 미세 스텔스 노이즈 차단"
+            prob = 0.60
+            is_success = random.random() <= prob
+
+            if is_success:
+                msg = f"방어전술 : [{tactic_display}] | 방어 성공 (바이래터럴 필터 정화 완료, 차단율 60%) → 미세 스텔스 노이즈 차단"
                 return clean, msg, True, tactic_display
             else:
-                msg = f"방어전술 : [{tactic_display}] | 방어 실패 (스텔스 노이즈 우회 침투 허용)"
+                msg = f"방어전술 : [{tactic_display}] | 방어 실패 (관통 확률 40%로 스텔스 노이즈 우회 침투 허용)"
                 return image, msg, False, tactic_display
 
     med = cv2.medianBlur(image, 3)
@@ -536,6 +542,16 @@ def analyze():
         int(sensor_dmg * 100), sync_loss, avail_loss
     )
 
+    # 방어 실패 시 사이버 공격 피해를 즉시 반영 (한 턴 지연 방지)
+    if not def_success and phys_attack == "NONE":
+        if any(k in cyb1 for k in ["DYNAMIC_REPLAY", "SPOOFING"]):
+            sync_loss = min(100, sync_loss + 25)
+            score_tracker.sync_loss_pct = sync_loss
+        if any(k in cyb1 for k in ["PULSED_BLINDING", "BLURRING"]):
+            avail_loss = min(100, avail_loss + 5)
+            score_tracker.avail_loss_pct = avail_loss
+            score_tracker.availability = max(0.0, 100.0 - avail_loss)
+
     print(f" [Defense] 무결성손상: {score_tracker.integrity_loss_pct}% | 동기화왜곡: {score_tracker.sync_loss_pct}% | 가용성손실: {score_tracker.avail_loss_pct}%", flush=True)
 
     def_name = "AI 사이버 방어 쉴드"
@@ -552,7 +568,7 @@ def analyze():
     global_sim_state["syncLoss"] = score_tracker.sync_loss_pct
     global_sim_state["integLoss"] = score_tracker.integrity_loss_pct
     global_sim_state["budget"] = req_budget
-    global_sim_state["spentCost"] = round(20.0 - req_budget, 2)
+    global_sim_state["spentCost"] = round(15.0 - req_budget, 2)
     raw_att = phys_attack if phys_attack != "NONE" else (cyb1 if cyb1 != "NONE" else attack_type)
     att_display_map = {
         "MISSILE_SURGICAL_STRIKE": "UGV 미사일 타격",
@@ -569,7 +585,7 @@ def analyze():
     global_sim_state["defenseName"] = def_name
     global_sim_state["defenseSuccess"] = def_success
     if phys_attack == "MISSILE_SURGICAL_STRIKE":
-        ugv_line = "UGV 요격 성공" if platform_destroyed else "UGV 요격 실패"
+        ugv_line = "UGV 명중 성공" if platform_destroyed else "UGV 명중 실패"
         msl_line = "미사일 요격 성공" if munition_intercepted else "미사일 요격 실패"
         global_sim_state["outcomeStatus"] = f"{ugv_line}<br>{msl_line}"
     else:
@@ -652,11 +668,12 @@ def update_notice():
 
 @app.route('/api/reset', methods=['POST'])
 def reset_state():
-    global global_sim_state, score_tracker
+    global global_sim_state, score_tracker, adaptive_denoise_count
     score_tracker = ScoreTracker()
+    adaptive_denoise_count = 0
     global_sim_state = {
         "globalRound": 1,
-        "budget": 20.0,
+        "budget": 15.0,
         "spentCost": 0.0,
         "attackScore": 0.0,
         "defenseScore": 0.0,
@@ -704,7 +721,7 @@ def print_scoreboard():
 
     if "budget" in data:
         global_sim_state["budget"] = data["budget"]
-        global_sim_state["spentCost"] = data.get("spent_cost", round(20.0 - data["budget"], 2))
+        global_sim_state["spentCost"] = data.get("spent_cost", round(15.0 - data["budget"], 2))
 
     win_req = round(1000.0 * (avail / 100.0), 1)
     global_sim_state["winRequirement"] = win_req

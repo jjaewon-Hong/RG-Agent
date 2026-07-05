@@ -14,7 +14,7 @@ let state = {
   intervalId: null,
   speedMs: 1500,
   globalRound: 1,
-  budget: 20.0,
+  budget: 15.0,
   spentCost: 0.0,
   attackScore: 0.0,
   defenseScore: 0.0,
@@ -118,7 +118,7 @@ async function pollDockerBackend() {
     let data = await res.json();
 
     state.globalRound = data.globalRound || 1;
-    state.budget = data.budget !== undefined ? data.budget : 20.0;
+    state.budget = data.budget !== undefined ? data.budget : 15.0;
     state.spentCost = data.spentCost || 0.0;
     state.attackScore = data.attackScore !== undefined ? data.attackScore : 0.0;
     state.defenseScore = data.defenseScore !== undefined ? data.defenseScore : 0.0;
@@ -254,7 +254,7 @@ function startSim() {
   el.btnStart.style.backgroundColor = "#ff9100";
 
   let mode = el.simMode ? el.simMode.value : "demo";
-  
+
   if (mode === "docker") {
     fetch("http://localhost:5000/api/resume", { method: "POST" }).catch(() => { });
   }
@@ -297,7 +297,7 @@ function resetSim() {
     intervalId: null,
     speedMs: parseInt(el.simSpeed.value, 10),
     globalRound: 1,
-    budget: 20.0,
+    budget: 15.0,
     spentCost: 0.0,
     attackScore: 0.0,
     defenseScore: 0.0,
@@ -356,14 +356,14 @@ function stepSim() {
   if (cycleIdx === 0) {
     attType = Math.random() > 0.5 ? "STEALTH_NOISE" : "ADVERSARIAL_NOISE";
   } else if (cycleIdx === 1) {
+    attType = Math.random() > 0.5 ? "SPOOFING" : "BLURRING";
+  } else {
     isPhysical = true;
     if (state.budget >= COSTS.MISSILE_SURGICAL_STRIKE && state.ugvCooldown === 0) {
       attType = "MISSILE_SURGICAL_STRIKE";
     } else {
       attType = "DRONE_SWARM";
     }
-  } else {
-    attType = Math.random() > 0.5 ? "SPOOFING" : "BLURRING";
   }
 
   attCost = COSTS[attType] || 0;
@@ -478,7 +478,7 @@ function stepSim() {
 
   el.outcomeAttack.textContent = attDisplay;
   if (attType === "MISSILE_SURGICAL_STRIKE") {
-    let ugvStr = state.lastUgvHit ? "UGV 요격 성공" : "UGV 요격 실패";
+    let ugvStr = state.lastUgvHit ? "UGV 명중 성공" : "UGV 명중 실패";
     let mslStr = defSuccess ? "미사일 요격 성공" : "미사일 요격 실패";
     el.outcomeStatus.innerHTML = `${ugvStr}<br>${mslStr}`;
   } else {
