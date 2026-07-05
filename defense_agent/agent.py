@@ -358,17 +358,17 @@ adaptive_denoise_count = 0
 def denoise_preprocessing(image: np.ndarray, cyb_attack: str = "NONE") -> tuple[np.ndarray, str, bool, str]:
     global adaptive_denoise_count
     if "NOISE" in cyb_attack:
+        adaptive_denoise_count += 1
         gray_before = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         noise_before = float(cv2.Laplacian(gray_before, cv2.CV_64F).std())
         tactic_name, strength = query_llm_noise_defense(cyb_attack, noise_before)
 
-        if "ADVERSARIAL" in cyb_attack or "Adaptive" in tactic_name or "적응형" in tactic_name:
-            adaptive_denoise_count += 1
+        if "ADVERSARIAL" in cyb_attack:
             tactic_display = "LLM 적응형 디노이징"
             clean = cv2.fastNlMeansDenoisingColored(image, None, float(strength), float(strength), 3, 7)
             noise_after = float(cv2.Laplacian(cv2.cvtColor(clean, cv2.COLOR_BGR2GRAY), cv2.CV_64F).std())
 
-            prob = min(0.95, 0.40 + 0.15 * (adaptive_denoise_count - 1))
+            prob = min(0.85, 0.40 + 0.15 * (adaptive_denoise_count - 1))
             is_success = random.random() <= prob
 
             if is_success:
@@ -504,7 +504,6 @@ def analyze():
             detected_anomalies.append(f"탄두_요격_성공({intercept_msg[:25]})")
         else:
             if phys_attack == "MISSILE_SURGICAL_STRIKE":
-                sensor_dmg = min(1.0, sensor_dmg + 0.30)
                 avail_loss = min(100, avail_loss + 20)
             elif phys_attack == "DRONE_SWARM":
                 avail_loss = min(100, avail_loss + 10)
@@ -513,7 +512,7 @@ def analyze():
             detected_anomalies.append("적_플랫폼_파괴")
 
     replay_tactic = "동적 지각 해시 검증"
-    if any(k in cyb1 for k in ["DYNAMIC_REPLAY", "SPOOFING"]) or any(k in cyb2 for k in ["DYNAMIC_REPLAY", "SPOOFING"]):
+    if any(k in cyb1 for k in ["DYNAMIC_REPLAY", "SPOOFING", "REPLAY", "스푸핑", "SPOOF"]) or any(k in cyb2 for k in ["DYNAMIC_REPLAY", "SPOOFING", "REPLAY", "스푸핑", "SPOOF"]):
         is_replay, replay_msg, replay_tactic = verify_replay_attack(processed_image, client_ts)
         print(f"\n  방어전술 : [{replay_tactic}] -> {replay_msg}", flush=True)
         if is_replay:
@@ -544,7 +543,13 @@ def analyze():
 
     # 방어 실패 시 사이버 공격 피해를 즉시 반영 (한 턴 지연 방지)
     if not def_success and phys_attack == "NONE":
-        if any(k in cyb1 for k in ["DYNAMIC_REPLAY", "SPOOFING"]):
+        if "ADVERSARIAL_NOISE" in cyb1:
+            sensor_dmg = min(1.0, sensor_dmg + 0.30)
+            score_tracker.integrity_loss_pct = int(sensor_dmg * 100)
+        elif any(k in cyb1 for k in ["STEALTH_NOISE", "NOISE"]):
+            sensor_dmg = min(1.0, sensor_dmg + 0.20)
+            score_tracker.integrity_loss_pct = int(sensor_dmg * 100)
+        if any(k in cyb1 for k in ["DYNAMIC_REPLAY", "SPOOFING", "REPLAY", "스푸핑", "SPOOF"]):
             sync_loss = min(100, sync_loss + 25)
             score_tracker.sync_loss_pct = sync_loss
         if any(k in cyb1 for k in ["PULSED_BLINDING", "BLURRING"]):
@@ -558,7 +563,7 @@ def analyze():
     if phys_attack == "MISSILE_SURGICAL_STRIKE": def_name = "요격 미사일"
     elif phys_attack == "DRONE_SWARM": def_name = "발칸포"
     elif "NOISE" in noise_attack_type: def_name = noise_tactic
-    elif any(k in cyb1 for k in ["DYNAMIC_REPLAY", "SPOOFING"]): def_name = replay_tactic
+    elif any(k in cyb1 for k in ["DYNAMIC_REPLAY", "SPOOFING", "REPLAY", "스푸핑", "SPOOF"]): def_name = replay_tactic
     elif any(k in cyb1 for k in ["PULSED_BLINDING", "BLURRING"]): def_name = blind_tactic
 
     global_sim_state["globalRound"] = req_round + 1
@@ -718,6 +723,10 @@ def print_scoreboard():
     global_sim_state["attackScore"] = att_sc
     global_sim_state["defenseScore"] = def_sc
     global_sim_state["availLoss"] = round(100.0 - avail, 1)
+    if "sync_loss" in data:
+        global_sim_state["syncLoss"] = data["sync_loss"]
+    if "integrity_loss" in data:
+        global_sim_state["integLoss"] = data["integrity_loss"]
 
     if "budget" in data:
         global_sim_state["budget"] = data["budget"]

@@ -227,7 +227,7 @@ def apply_cyber_attack(image: np.ndarray, attack_type: str, round_num: int) -> t
         return np.clip(image.astype(np.float64) + noise, 0, 255).astype(np.uint8), \
                f"적대적 가우시안 노이즈 (σ={sigma})"
 
-    elif attack_type in ["DYNAMIC_REPLAY", "SPOOFING"]:
+    elif any(k in attack_type for k in ["DYNAMIC_REPLAY", "SPOOFING", "REPLAY", "스푸핑", "SPOOF"]):
         if len(replay_buffer) < REPLAY_BUFFER_MAX:
             replay_buffer.append(image.copy())
             return image, "리플레이 스푸핑 버퍼 축적 중..."
@@ -427,6 +427,8 @@ def main():
                                   json={"defense_score": score_tracker.defense_score,
                                         "attack_score": score_tracker.attack_score,
                                         "availability": score_tracker.availability,
+                                        "sync_loss": score_tracker.sync_loss_pct,
+                                        "integrity_loss": score_tracker.integrity_loss_pct,
                                         "budget": round(current_budget, 2),
                                         "spent_cost": round(15.0 - current_budget, 2)},
                                   timeout=1.0)
@@ -618,7 +620,6 @@ def main():
                     if not munition_intercepted:
                         munition_hit_success = True
                         if phys_attack == "MISSILE_SURGICAL_STRIKE":
-                            missile_sensor_damage = min(1.0, missile_sensor_damage + MISSILE_DAMAGE_PER_STRIKE)
                             bandwidth_loss_pct = min(100, bandwidth_loss_pct + MISSILE_AVAIL_DAMAGE)
                         elif phys_attack == "DRONE_SWARM":
                             bandwidth_loss_pct = min(100, bandwidth_loss_pct + DRONE_SWARM_DAMAGE)
@@ -626,7 +627,13 @@ def main():
                 sigint_detected = len(anoms) > 0
                 defense_str = f"SIGINT:{len(anoms)}건, 전술판정:{tact_dec}"
                 is_def_succ = result.get("defense_success", False)
-                if any(k in current_attack_type for k in ["DYNAMIC_REPLAY", "SPOOFING"]):
+                if "ADVERSARIAL_NOISE" in current_attack_type:
+                    if not is_def_succ:
+                        missile_sensor_damage = min(1.0, missile_sensor_damage + 0.30)
+                elif any(k in current_attack_type for k in ["STEALTH_NOISE", "NOISE"]):
+                    if not is_def_succ:
+                        missile_sensor_damage = min(1.0, missile_sensor_damage + 0.20)
+                if any(k in current_attack_type for k in ["DYNAMIC_REPLAY", "SPOOFING", "REPLAY", "스푸핑", "SPOOF"]):
                     if not is_def_succ:
                         temporal_sync_loss_pct = min(100, temporal_sync_loss_pct + 25)
                 if any(k in current_attack_type for k in ["PULSED_BLINDING", "BLURRING"]):
@@ -654,6 +661,8 @@ def main():
                               json={"defense_score": score_tracker.defense_score,
                                     "attack_score": score_tracker.attack_score,
                                     "availability": score_tracker.availability,
+                                    "sync_loss": score_tracker.sync_loss_pct,
+                                    "integrity_loss": score_tracker.integrity_loss_pct,
                                     "budget": round(current_budget, 2),
                                     "spent_cost": round(15.0 - current_budget, 2)},
                               timeout=1.0)

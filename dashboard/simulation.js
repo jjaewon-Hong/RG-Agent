@@ -122,9 +122,9 @@ async function pollDockerBackend() {
     state.spentCost = data.spentCost || 0.0;
     state.attackScore = data.attackScore !== undefined ? data.attackScore : 0.0;
     state.defenseScore = data.defenseScore !== undefined ? data.defenseScore : 0.0;
-    state.availLoss = data.availLoss || 0;
-    state.syncLoss = data.syncLoss || 0;
-    state.integLoss = data.integLoss || 0;
+    state.availLoss = data.availLoss !== undefined ? data.availLoss : (data.avail_loss_pct !== undefined ? data.avail_loss_pct : (data.availability !== undefined ? Math.round(100 - data.availability) : state.availLoss));
+    state.syncLoss = data.syncLoss !== undefined ? data.syncLoss : (data.sync_loss_pct !== undefined ? data.sync_loss_pct : state.syncLoss);
+    state.integLoss = data.integLoss !== undefined ? data.integLoss : (data.integrity_loss_pct !== undefined ? data.integrity_loss_pct : (data.sensor_damage_level !== undefined ? Math.round(data.sensor_damage_level * 100) : state.integLoss));
 
     updateUI();
 
@@ -404,9 +404,12 @@ function stepSim() {
   let defName = "";
   let defSuccess = true;
 
-  if (attType === "ADVERSARIAL_NOISE") {
+  if (attType === "ADVERSARIAL_NOISE" || attType === "STEALTH_NOISE") {
     state.adaptiveDenoiseCount++;
-    let prob = Math.min(0.95, 0.40 + 0.15 * (state.adaptiveDenoiseCount - 1));
+  }
+
+  if (attType === "ADVERSARIAL_NOISE") {
+    let prob = Math.min(0.85, 0.40 + 0.15 * (state.adaptiveDenoiseCount - 1));
     defSuccess = Math.random() <= prob;
     defName = "LLM 적응형 디노이징";
     el.defenseMainImg.src = "images/noise_defense.png";
@@ -426,7 +429,7 @@ function stepSim() {
     defName = "발칸포";
     el.defenseMainImg.src = "images/vulcan_cannon.png";
     if (defSuccess && Math.random() <= 0.5) state.uavCooldown = 1;
-  } else if (attType === "DYNAMIC_REPLAY" || attType === "SPOOFING") {
+  } else if (attType.includes("SPOOF") || attType.includes("REPLAY") || attType.includes("스푸핑")) {
     defSuccess = Math.random() <= 0.75;
     defName = Math.random() > 0.5 ? "동적 지각 해시 검증" : "시공간 광학 흐름 연속성 검증";
     el.defenseMainImg.src = "images/spoofing_defense.png";
@@ -446,15 +449,20 @@ function stepSim() {
     } else if (attType === "DRONE_SWARM") {
       state.availLoss = Math.min(100, state.availLoss + 10);
       state.attackScore = Math.round((state.attackScore + 120.0) * 10) / 10;
-    } else if (attType === "DYNAMIC_REPLAY" || attType === "SPOOFING") {
+    } else if (attType.includes("SPOOF") || attType.includes("REPLAY") || attType.includes("스푸핑")) {
       state.syncLoss = Math.min(100, state.syncLoss + 25);
       state.attackScore = Math.round((state.attackScore + 120.0) * 10) / 10;
     } else if (attType === "PULSED_BLINDING" || attType === "BLURRING") {
       state.availLoss = Math.min(100, state.availLoss + 5);
       state.attackScore = Math.round((state.attackScore + 150.0) * 10) / 10;
     } else if (attType === "ADVERSARIAL_NOISE") {
+      state.integLoss = Math.min(100, state.integLoss + 30);
       state.attackScore = Math.round((state.attackScore + 50.0) * 10) / 10;
+    } else if (attType === "STEALTH_NOISE") {
+      state.integLoss = Math.min(100, state.integLoss + 20);
+      state.attackScore = Math.round((state.attackScore + 30.0) * 10) / 10;
     } else {
+      state.integLoss = Math.min(100, state.integLoss + 20);
       state.attackScore = Math.round((state.attackScore + 30.0) * 10) / 10;
     }
   } else {
@@ -462,8 +470,9 @@ function stepSim() {
     if (attType === "MISSILE_SURGICAL_STRIKE") shift = 120.0;
     else if (attType === "DRONE_SWARM") shift = 80.0;
     else if (attType === "BLURRING" || attType === "PULSED_BLINDING") shift = 100.0;
-    else if (attType === "SPOOFING" || attType === "DYNAMIC_REPLAY") shift = 120.0;
+    else if (attType.includes("SPOOF") || attType.includes("REPLAY") || attType.includes("스푸핑")) shift = 120.0;
     else if (attType === "ADVERSARIAL_NOISE") shift = 30.0;
+    else if (attType === "STEALTH_NOISE") shift = 20.0;
     state.defenseScore = Math.round((state.defenseScore + shift) * 10) / 10;
   }
 

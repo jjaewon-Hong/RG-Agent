@@ -28,7 +28,7 @@ class ScoreTracker:
             att_pts, def_pts = 120.0, 80.0
         elif any(k in attack_type for k in ["PULSED_BLINDING", "BLURRING"]):
             att_pts, def_pts = 150.0, 100.0
-        elif any(k in attack_type for k in ["DYNAMIC_REPLAY", "SPOOFING"]):
+        elif any(k in attack_type for k in ["DYNAMIC_REPLAY", "SPOOFING", "REPLAY", "스푸핑", "SPOOF"]):
             att_pts, def_pts = 120.0, 120.0
         elif attack_type == "ADVERSARIAL_NOISE":
             att_pts, def_pts = 50.0, 30.0
