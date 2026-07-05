@@ -12,6 +12,25 @@ from scorer import ScoreTracker
 signal.signal(signal.SIGTERM, lambda s, f: os._exit(0))
 signal.signal(signal.SIGINT, lambda s, f: os._exit(0))
 
+def block_while_paused():
+    """isPaused가 True인 동안 무한 대기. Resume 되면 즉시 반환."""
+    while True:
+        try:
+            res = requests.get(f"http://{DEFENSE_HOST}:{DEFENSE_PORT}/api/state", timeout=2.0).json()
+            if not res.get("isPaused", False):
+                return
+        except Exception:
+            return
+        time.sleep(1.0)
+
+def wait_with_pause_check():
+    """ATTACK_INTERVAL 동안 대기하되, 매초 pause 상태를 확인."""
+    sleep_time = 0.0
+    while sleep_time < ATTACK_INTERVAL:
+        time.sleep(1.0)
+        sleep_time += 1.0
+        block_while_paused()
+
 TARGET_HOST    = os.environ.get("TARGET_HOST",    "target_env")
 DEFENSE_HOST   = os.environ.get("DEFENSE_HOST",   "defense_agent")
 DEFENSE_PORT   = os.environ.get("DEFENSE_PORT",   "5000")
@@ -376,7 +395,7 @@ def main():
     else:
         print("  [!] 방어 에이전트 연결 대기 초과.\n", flush=True)
 
-    time.sleep(ATTACK_INTERVAL)
+    wait_with_pause_check()
 
     while True:
         global current_budget, missile_sensor_damage, bandwidth_loss_pct, temporal_sync_loss_pct, ugv_cooldown, uav_cooldown
@@ -399,6 +418,7 @@ def main():
         score_tracker = ScoreTracker()
 
         while True:
+            block_while_paused()
             min_phys_cost = min(COST_MISSILE, COST_DRONE_SWARM)
             if current_budget < min_phys_cost:
                 print(f"\n [★ 작전 불가 선언] 물리 공격 예산 소진 (잔여: {current_budget:.2f}M$ < 최소 물리 타격 비용: {min_phys_cost}M$).\n 물리 공격 수행 불가능 조건 충족 -> 공격측 패배 선언 (Defense Victory 완승)\n", flush=True)
@@ -445,7 +465,7 @@ def main():
             target_image_name = random.choice(IMAGE_LIST)
             image = fetch_image(target_image_name)
             if image is None:
-                time.sleep(ATTACK_INTERVAL)
+                wait_with_pause_check()
                 continue
 
             poisoned_image = image.copy()
@@ -534,6 +554,7 @@ def main():
             att_kr = att_display_map.get(current_attack_type, current_attack_type)
             print(f" 공격전술 : {att_kr}", flush=True)
 
+            block_while_paused()
             client_ts = time.time()
             prev_attack_score = score_tracker.attack_score
 
@@ -665,7 +686,7 @@ def main():
                     notify_dashboard(f"{completed_r} Round ( Attack_Agent 다른 공격 패턴 구축 중 ... )")
                 else:
                     notify_dashboard(f"{completed_r} Round ( Attack_Agent 현재 공격 패턴 유지 )")
-            time.sleep(ATTACK_INTERVAL)
+            wait_with_pause_check()
 
         print(" [★ 교전 사이클 종료] 대시보드 관리자의 '다시 시작' 명령 대기 중...\n", flush=True)
         while True:

@@ -2,6 +2,7 @@ services:
   target_env:
     build: ./image_set
     container_name: dah_target_env
+    restart: unless-stopped
     networks:
       - dah_network
     ports:
@@ -10,6 +11,7 @@ services:
   attack_agent:
     build: ./attack_agent
     container_name: dah_attack_agent
+    restart: unless-stopped
     depends_on:
       - target_env
     networks:
@@ -29,6 +31,7 @@ services:
   defense_agent:
     build: ./defense_agent
     container_name: dah_defense_agent
+    restart: unless-stopped
     ports:
       - "5000:5000"
     depends_on:

@@ -45,7 +45,8 @@ global_sim_state = {
     "gameOver": False,
     "winner": "",
     "winReason": "",
-    "winRequirement": 1000
+    "winRequirement": 1000,
+    "isPaused": False
 }
 
 signal.signal(signal.SIGTERM, lambda s, f: os._exit(0))
@@ -671,10 +672,23 @@ def reset_state():
         "gameOver": False,
         "winner": "",
         "winReason": "",
-        "winRequirement": 1000
+        "winRequirement": 1000,
+        "isPaused": False
     }
     print("\n [★ 지휘 관제 리셋] 대시보드 명령으로 교전 상태 및 점수가 1라운드로 리셋되었습니다.\n", flush=True)
     return jsonify({"status": "RESET_OK"}), 200
+
+@app.route('/api/pause', methods=['POST'])
+def pause_state():
+    global_sim_state["isPaused"] = True
+    print("\n [★ 지휘 관제] 대시보드 명령으로 시뮬레이션이 일시정지(PAUSE) 되었습니다.\n", flush=True)
+    return jsonify({"status": "PAUSED"}), 200
+
+@app.route('/api/resume', methods=['POST'])
+def resume_state():
+    global_sim_state["isPaused"] = False
+    print("\n [★ 지휘 관제] 대시보드 명령으로 시뮬레이션이 재개(RESUME) 되었습니다.\n", flush=True)
+    return jsonify({"status": "RESUMED"}), 200
 
 
 @app.route('/print_scoreboard', methods=['POST'])

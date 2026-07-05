@@ -254,6 +254,11 @@ function startSim() {
   el.btnStart.style.backgroundColor = "#ff9100";
 
   let mode = el.simMode ? el.simMode.value : "demo";
+  
+  if (mode === "docker") {
+    fetch("http://localhost:5000/api/resume", { method: "POST" }).catch(() => { });
+  }
+
   if (!state.intervalId) {
     if (mode === "docker") {
       pollDockerBackend();
@@ -271,6 +276,9 @@ function pauseSim() {
   state.intervalId = null;
   el.btnStart.textContent = "▶ RESUME";
   el.btnStart.style.backgroundColor = "#00c853";
+  if (el.simMode && el.simMode.value === "docker") {
+    fetch("http://localhost:5000/api/pause", { method: "POST" }).catch(() => { });
+  }
 }
 
 function resetSim() {
