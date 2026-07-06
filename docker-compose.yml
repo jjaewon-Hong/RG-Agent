@@ -1,6 +1,6 @@
 services:
   target_env:
-    build: ./image_set
+    build: ./attack_test_pool
     container_name: dah_target_env
     restart: unless-stopped
     networks:
