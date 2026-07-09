@@ -158,7 +158,7 @@ def apply_surgical_missile_strike(image: np.ndarray, target_subsystem: str = "ID
     result[y1:y2, x1:x2] = static_patch
     cv2.rectangle(result, (x1, y1), (x2, y2), (0, 200, 255), 3)
 
-    expected_dmg = int(min(1.0, missile_sensor_damage + MISSILE_DAMAGE_PER_STRIKE) * 100)
+    expected_dmg = int(round(min(1.0, missile_sensor_damage + MISSILE_DAMAGE_PER_STRIKE) * 100))
     msg = (
         f"[정밀 타격] 미사일 → [{label}] 타격 시도!\n"
         f"           타격 대상: {target_subsystem} | 명중 시 예상 누적 손상도: {expected_dmg:3d}%\n"
@@ -181,7 +181,7 @@ def apply_missile_effect_tick(image: np.ndarray) -> tuple[np.ndarray, str]:
         noise = np.random.normal(0, interference_intensity, image.shape).astype(np.float64)
         result = np.clip(result.astype(np.float64) + noise, 0, 255).astype(np.uint8)
 
-    return result, f"[영구 손상] 센서 파손 노이즈 지속 | 누적 탐지 저하: {int(missile_sensor_damage*100)}%"
+    return result, f"[영구 손상] 센서 파손 노이즈 지속 | 누적 탐지 저하: {int(round(missile_sensor_damage*100))}%"
 
 
 def apply_drone_swarm(image: np.ndarray, swarm_count: int = 1) -> tuple[np.ndarray, str]:
@@ -260,7 +260,7 @@ def evaluate_probing_results(history: list, is_replan: bool = False) -> dict:
         f"  - {h['round']}R [{h['attack_category']}]: {h['attack']} → 방어 반응: {h['defense']}"
         for h in history[-6:]
     ])
-    current_damage = int(missile_sensor_damage * 100)
+    current_damage = int(round(missile_sensor_damage * 100))
 
     context_msg = "3라운드 정찰 결과를 분석하여 최초의 3-콤보 작전을 기획하라."
     if is_replan:
@@ -348,7 +348,7 @@ total_score = (attack_score + defense_score) × (availability / 100)
 
 
 def print_round_header(round_num: int):
-    print(f"\n  [R{round_num:04d}] 예산: {current_budget:.2f}M$ | 무결성손상: {int(missile_sensor_damage*100)}% | 동기화왜곡: {temporal_sync_loss_pct}% | 가용성손실: {bandwidth_loss_pct}%", flush=True)
+    print(f"\n  [R{round_num:04d}] 예산: {current_budget:.2f}M$ | 무결성손상: {int(round(missile_sensor_damage*100))}% | 동기화왜곡: {temporal_sync_loss_pct}% | 가용성손실: {bandwidth_loss_pct}%", flush=True)
 
 
 def print_strategy_banner(strategy: dict):
@@ -641,7 +641,7 @@ def main():
                         bandwidth_loss_pct = min(100, bandwidth_loss_pct + 5)
 
             score_tracker.evaluate_triad_round(
-                current_attack_type, result, int(missile_sensor_damage * 100),
+                current_attack_type, result, int(round(missile_sensor_damage * 100)),
                 temporal_sync_loss_pct, bandwidth_loss_pct
             )
             print(f" [Attack 점수] Attack Score : {score_tracker.attack_score:.1f} pt", flush=True)
@@ -650,7 +650,7 @@ def main():
             attack_history.append({
                 "round": round_num, "attack_category": attack_category,
                 "attack": current_attack_type, "defense": defense_str,
-                "sensor_damage": f"{int(missile_sensor_damage*100)}%",
+                "sensor_damage": f"{int(round(missile_sensor_damage*100))}%",
                 "success": is_success
             })
 

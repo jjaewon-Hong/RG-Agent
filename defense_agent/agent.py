@@ -538,17 +538,17 @@ def analyze():
     score_tracker.evaluate_triad_round(
         attack_type,
         {"defense_success": def_success},
-        int(sensor_dmg * 100), sync_loss, avail_loss
+        int(round(sensor_dmg * 100)), sync_loss, avail_loss
     )
 
     # 방어 실패 시 사이버 공격 피해를 즉시 반영 (한 턴 지연 방지)
     if not def_success and phys_attack == "NONE":
         if "ADVERSARIAL_NOISE" in cyb1:
             sensor_dmg = min(1.0, sensor_dmg + 0.30)
-            score_tracker.integrity_loss_pct = int(sensor_dmg * 100)
+            score_tracker.integrity_loss_pct = int(round(sensor_dmg * 100))
         elif any(k in cyb1 for k in ["STEALTH_NOISE", "NOISE"]):
             sensor_dmg = min(1.0, sensor_dmg + 0.20)
-            score_tracker.integrity_loss_pct = int(sensor_dmg * 100)
+            score_tracker.integrity_loss_pct = int(round(sensor_dmg * 100))
         if any(k in cyb1 for k in ["DYNAMIC_REPLAY", "SPOOFING", "REPLAY", "스푸핑", "SPOOF"]):
             sync_loss = min(100, sync_loss + 25)
             score_tracker.sync_loss_pct = sync_loss
