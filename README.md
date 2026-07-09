@@ -2,7 +2,7 @@
 
 ---
 
-## 🚀 실행 방법
+## ⚔️ 실행 방법
 
 ### 1. 로컬 LLM (Ollama) 준비
 호스트 PC에서 Ollama를 실행하고 `llama3` 모델을 준비합니다.
@@ -22,7 +22,7 @@ docker-compose up --build -d
 
 ---
 
-## 📦 의존성
+## 🛡️ 의존성
 
 ### 호스트 필수 소프트웨어
 - **Docker & Docker Compose** (전체 서비스 컨테이너 구동 및 오케스트레이션)
